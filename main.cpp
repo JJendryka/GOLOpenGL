@@ -39,8 +39,8 @@ void mouseHandler(bool useFirst, GLuint firstTexture, GLuint secondTexture, floa
         glfwGetCursorPos(window, &xposm, &yposm);
         GLubyte color[4] = {0, 0, 0, 255};
         glBindTexture(GL_TEXTURE_2D, useFirst ? secondTexture : firstTexture);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, (int)(xposm / scale) + x,
-                        SIMULATION_HEIGHT - (int)(yposm / scale) + y,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, (int)((xposm) / scale) + y,
+                        (int)((WINDOW_HEIGHT - yposm) / scale) + x,
                         1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &color);
     }
 }
