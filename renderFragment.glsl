@@ -14,7 +14,18 @@ void main() {
         color = vec4(1, 1, 1, 1);
     }
     else {
-        color = texelFetch(state, ivec2((gl_FragCoord.xy / scale) + position),0);
+        if (scale.x<1) {
+            vec4 sum = vec4(0, 0, 0, 0);
+            for (int i=0; i<1/scale.x; i++) {
+                for (int j=0; i<1/scale.x; i++) {
+                    sum += texelFetch(state, ivec2((gl_FragCoord.xy / scale) + position + vec2(i, j)), 0);
+                }
+            }
+            color = sum;
+        }
+        else {
+            color = texelFetch(state, ivec2((gl_FragCoord.xy / scale) + position),0);
+        }
     }
 }
 

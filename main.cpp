@@ -1,5 +1,5 @@
-#define SIMULATION_WIDTH 1024
-#define SIMULATION_HEIGHT 1024
+#define SIMULATION_WIDTH 128
+#define SIMULATION_HEIGHT 128
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 1024
@@ -45,7 +45,7 @@ void mouseHandler(bool useFirst, GLuint firstTexture, GLuint secondTexture, floa
     }
 }
 
-void buttonHandler(std::chrono::time_point<std::chrono::system_clock> &lastButtonPress, bool &paused, float &fps, float &scale, int &x, int &y, bool &grid) {
+void buttonHandler(std::chrono::time_point<std::chrono::system_clock> &lastButtonPress, bool &paused, float &fps, float &scale, int &x, int &y, bool &grid, GLuint texture) {
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS &&
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastButtonPress).count() > 200) {
         paused = !paused;
@@ -109,7 +109,42 @@ void buttonHandler(std::chrono::time_point<std::chrono::system_clock> &lastButto
         y += 100 / scale;
         lastButtonPress = std::chrono::system_clock::now();
     }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastButtonPress).count() > 200) {
+        std::vector<GLubyte> filler(SIMULATION_WIDTH * SIMULATION_HEIGHT * 4, 0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIMULATION_WIDTH, SIMULATION_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, &filler[0]);
+        lastButtonPress = std::chrono::system_clock::now();
+    }
 
+}
+
+bool saveHandler(GLuint texture, GLuint buffer, std::chrono::time_point<std::chrono::system_clock> &lastButtonPress) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastButtonPress).count() > 200) {
+        glBindFramebuffer(GL_FRAMEBUFFER, buffer);
+        glViewport(0, 0, SIMULATION_WIDTH, SIMULATION_HEIGHT);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        GLubyte data[SIMULATION_HEIGHT][SIMULATION_WIDTH][4];
+        glReadPixels(0, 0, SIMULATION_WIDTH, SIMULATION_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, &data);
+
+        std::ofstream savefile ("save.pbm");
+        if (savefile.is_open()) {
+            savefile << "P1\n";
+            savefile << "# Save file of GOL simulation\n";
+            savefile << SIMULATION_WIDTH << " " << SIMULATION_HEIGHT << "\n";
+            for (int y = 0; y < SIMULATION_HEIGHT; y++) {
+                for (int x = 0; x < SIMULATION_WIDTH; x++) {
+                    savefile << (int(data[y][x][0]) > 128 ? "1" : "0") << " ";
+                }
+                savefile << "\n";
+            }
+            savefile.close();
+        }
+        lastButtonPress = std::chrono::system_clock::now();
+        return true;
+    }
+    return false;
 }
 
 int main(int argc, char** argv)
@@ -164,17 +199,45 @@ int main(int argc, char** argv)
 
 
     //Creating target textures
+    std::vector<GLubyte> empty(SIMULATION_WIDTH * SIMULATION_HEIGHT * 4, 0);
+    std::vector<GLubyte> data(SIMULATION_WIDTH * SIMULATION_HEIGHT * 4, 0);
+
+    std::ifstream inputFile("save.pbm");
+    if (inputFile.good()) {
+        std::string line;
+        getline(inputFile, line);
+        getline(inputFile, line);
+        getline(inputFile, line);
+
+        for (int y = 0; y < SIMULATION_HEIGHT; y++) {
+            getline(inputFile, line);
+            for (int x = 0; x < SIMULATION_WIDTH; x++) {
+                if (line[x * 2] == '1') {
+                    data[y * SIMULATION_WIDTH * 4 + x * 4] = 255;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 1] = 255;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 2] = 255;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 3] = 255;
+                }
+                else {
+                    data[y * SIMULATION_WIDTH * 4 + x * 4] = 0;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 1] = 0;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 2] = 0;
+                    data[y * SIMULATION_WIDTH * 4 + x * 4 + 3] = 0;
+                }
+            }
+        }
+        inputFile.close();
+    }
+
     GLuint firstTexture;
     glGenTextures(1, &firstTexture);
-
-    std::vector<GLubyte> emptyData(SIMULATION_WIDTH * SIMULATION_HEIGHT * 4, 0);
 
     glBindTexture(GL_TEXTURE_2D, firstTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SIMULATION_WIDTH, SIMULATION_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, &emptyData[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SIMULATION_WIDTH, SIMULATION_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, &empty[0]);
 
     GLuint secondTexture;
     glGenTextures(1, &secondTexture);
@@ -184,7 +247,7 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SIMULATION_WIDTH, SIMULATION_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, &emptyData[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SIMULATION_WIDTH, SIMULATION_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
 
 
 
@@ -220,7 +283,7 @@ int main(int argc, char** argv)
     GLint outPositionID = glGetUniformLocation(renderProgram, "position");
     GLint outGridID = glGetUniformLocation(renderProgram, "grid");
 
-    bool paused = false;
+    bool paused = true;
     bool grid = false;
 
     float fps = 60;
@@ -229,6 +292,7 @@ int main(int argc, char** argv)
 
     auto lastButtonPress = std::chrono::system_clock::now();
     auto lastFrame = std::chrono::system_clock::now();
+    auto fpsPoint = std::chrono::system_clock::now();
 
     bool useFirst = true;
 
@@ -301,12 +365,10 @@ int main(int argc, char** argv)
         glfwPollEvents();
 
         mouseHandler(useFirst, firstTexture, secondTexture, scale, x, y);
-        buttonHandler(lastButtonPress, paused, fps, scale, x, y, grid);
-
-
-
+        buttonHandler(lastButtonPress, paused, fps, scale, x, y, grid, useFirst ? secondTexture : firstTexture);
+        if (saveHandler(useFirst ? secondTexture : firstTexture, customBuffer, lastButtonPress)) break;
     }
-    while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
+    while( glfwGetKey(window, GLFW_KEY_Q ) != GLFW_PRESS &&
            glfwWindowShouldClose(window) == 0 );
 
     glfwTerminate();
