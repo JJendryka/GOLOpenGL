@@ -1,5 +1,5 @@
-#define SIMULATION_WIDTH 128
-#define SIMULATION_HEIGHT 128
+#define SIMULATION_WIDTH 1024
+#define SIMULATION_HEIGHT 1024
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 1024
@@ -135,7 +135,7 @@ bool saveHandler(GLuint texture, GLuint buffer, std::chrono::time_point<std::chr
             savefile << SIMULATION_WIDTH << " " << SIMULATION_HEIGHT << "\n";
             for (int y = 0; y < SIMULATION_HEIGHT; y++) {
                 for (int x = 0; x < SIMULATION_WIDTH; x++) {
-                    savefile << (int(data[y][x][0]) > 128 ? "1" : "0") << " ";
+                    savefile << (int(data[y][x][0]) > 128 ? "1" : "0") <<" ";
                 }
                 savefile << "\n";
             }
@@ -212,7 +212,7 @@ int main(int argc, char** argv)
         for (int y = 0; y < SIMULATION_HEIGHT; y++) {
             getline(inputFile, line);
             for (int x = 0; x < SIMULATION_WIDTH; x++) {
-                if (line[x * 2] == '1') {
+                if (line[x*2] == '1') {
                     data[y * SIMULATION_WIDTH * 4 + x * 4] = 255;
                     data[y * SIMULATION_WIDTH * 4 + x * 4 + 1] = 255;
                     data[y * SIMULATION_WIDTH * 4 + x * 4 + 2] = 255;
